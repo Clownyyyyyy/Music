@@ -1,0 +1,9 @@
+{
+  "$schema": "https://railway.com/deploy/railway.schema.json",
+  "deploy": {
+    "preDeployCommand": "npx -y prisma db push --skip-generate --accept-data-loss",
+    "startCommand": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}

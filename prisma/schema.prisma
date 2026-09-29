@@ -9,7 +9,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./db/custom.db"
+  url      = env("DATABASE_URL")
 }
 
 /// Metadata snapshot of any track the user interacted with, so local views

@@ -68,3 +68,4 @@ db/
 *.tsbuildinfo
 mini-services/yt-service/cache.json
 mini-services/yt-service/yt-service.log
+scripts/backup/

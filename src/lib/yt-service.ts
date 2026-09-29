@@ -22,6 +22,11 @@ const BASE = process.env.YT_SERVICE_URL || "http://127.0.0.1:3031";
 const SIDECAR_DIR = process.env.YT_SERVICE_DIR || path.join(process.cwd(), "mini-services", "yt-service");
 const PYTHON = process.env.YT_SERVICE_PY || "/home/z/.venv/bin/python3";
 
+// Remote mode: when YT_SERVICE_URL is set (e.g. Railway internal networking)
+// the sidecar is a SEPARATE service with its own lifecycle. Never try to
+// spawn Python locally — this container has no ytmusicapi.
+const REMOTE_SIDECAR = Boolean(process.env.YT_SERVICE_URL);
+
 export class YtServiceError extends Error {
   status: number;
   constructor(message: string, status = 502) {
@@ -48,6 +53,7 @@ let healing: Promise<boolean> | null = null;
 let lastSpawnAt = 0;
 
 function spawnSidecar(): void {
+  if (REMOTE_SIDECAR) return;
   // Throttle: never spawn more than once per 4s across recompiles/workers.
   const now = Date.now();
   if (now - lastSpawnAt < 4_000) return;
@@ -76,6 +82,8 @@ function spawnSidecar(): void {
 /** Ensure the sidecar is alive; revive + warm-wait if not. Resolves true when healthy. */
 async function ensureSidecar(): Promise<boolean> {
   if (await probeHealth()) return true;
+  // Remote sidecar: Railway owns the lifecycle — probe and report only.
+  if (REMOTE_SIDECAR) return false;
   if (!healing) {
     healing = (async () => {
       spawnSidecar();

@@ -1,0 +1,100 @@
+// Local user data only — every MUSIC ITEM (songs/albums/artists/playlists)
+// comes live from ytmusicapi. This DB stores the user's own data:
+// likes, local playlists, listening history, play stats and the
+// recommendation feedback loop (transitions).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./db/custom.db"
+}
+
+/// Metadata snapshot of any track the user interacted with, so local views
+/// (likes/playlists/history) render instantly without re-hitting the API.
+model Track {
+  videoId         String   @id
+  title           String
+  artistName      String   @default("Unknown artist")
+  artistsJson     String   @default("[]")
+  albumTitle      String?
+  albumId         String?
+  cover           String?
+  duration        String   @default("")
+  durationSeconds Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  liked          LikedTrack?
+  stats          PlayStat?
+  historyEntries HistoryEntry[]
+  playlistItems  PlaylistItem[]
+}
+
+model LikedTrack {
+  videoId String   @id
+  addedAt DateTime @default(now())
+  track   Track    @relation(fields: [videoId], references: [videoId], onDelete: Cascade)
+
+  @@index([addedAt])
+}
+
+model PlayStat {
+  videoId      String    @id
+  playCount    Int       @default(0)
+  skipCount    Int       @default(0)
+  completions  Int       @default(0)
+  totalSeconds Int       @default(0)
+  lastPlayedAt DateTime?
+  track        Track     @relation(fields: [videoId], references: [videoId], onDelete: Cascade)
+
+  @@index([playCount])
+}
+
+/// Recommendation feedback loop (spec): A -> B transitions weighted by
+/// skip/complete signals; score in [-1, 1].
+model Transition {
+  id          String @id @default(cuid())
+  fromVideoId String
+  toVideoId   String
+  score       Float  @default(0)
+  observations Int   @default(0)
+
+  @@unique([fromVideoId, toVideoId])
+  @@index([fromVideoId])
+}
+
+model HistoryEntry {
+  id            String   @id @default(cuid())
+  videoId       String
+  playedAt      DateTime @default(now())
+  percentPlayed Float    @default(0)
+  context       String   @default("manual")
+  track         Track    @relation(fields: [videoId], references: [videoId], onDelete: Cascade)
+
+  @@index([playedAt])
+}
+
+model Playlist {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       PlaylistItem[]
+
+  @@index([updatedAt])
+}
+
+model PlaylistItem {
+  id         String   @id @default(cuid())
+  playlistId String
+  videoId    String
+  position   Int
+  addedAt    DateTime @default(now())
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track      Track    @relation(fields: [videoId], references: [videoId], onDelete: Cascade)
+
+  @@index([playlistId, position])
+}
